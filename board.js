@@ -67,6 +67,7 @@ async function drop(ev) {
 function MovePiece(piece, startSquare, targetSquare) {
     // Remover a cor dos moves possiveis
     for (var i = 0; i < piece.moves.length; i++) {
+        console.log(piece, i)
         document.getElementById(piece.moves[i].TargetSquare).style.backgroundColor = board.defaultColors[piece.moves[i].TargetSquare]
     }
     // Verificar se o move é possível
@@ -190,6 +191,10 @@ class Piece {
         return piece.type == "n"
     }
 
+    IsKingPiece(piece) {
+        return piece.type == "k"
+    }
+
     IsType(piece, pieceToCompareTo) {
         return piece.type == pieceToCompareTo
     }
@@ -222,6 +227,28 @@ class Piece {
 
                     piece.moves.push(new Move(startSquare, targetSquare))
                 }
+            }
+        }
+
+        function GenerateKingMoves(startSquare, piece, friendlyColor) {
+
+            var DirectionOffsets = [8, 1, -1, -8, 7, -7, 9, -9]
+
+            var opponentColor = friendlyColor == "w" ? "b" : "w"
+
+            for (var directionIndex = 0; directionIndex < 8; directionIndex++) {
+
+                var targetSquare = startSquare + DirectionOffsets[directionIndex]
+                if (targetSquare > 63 || targetSquare < 0) continue
+                var pieceOnTargetSquare = board.Square[targetSquare]
+
+                // Blocked by friendly piece (cant move further in this direction)
+                if (piece.IsColor(pieceOnTargetSquare, friendlyColor)) {
+                    continue
+                }
+
+                piece.moves.push(new Move(startSquare, targetSquare))
+
             }
         }
 
@@ -261,6 +288,7 @@ class Piece {
                 var piece = parseInt(board.Square[startSquare])
                 if (piece == null) continue
                 if (piece.IsColor(piece, colorToMove)) {
+                    console.log(piece)
                     if (piece.IsSlidingPiece(piece)) {
                         GenerateSlidingMoves(startSquare, piece, colorToMove)
                     } else if (piece.IsKnightPiece(piece)) {
@@ -278,6 +306,8 @@ class Piece {
                     GenerateSlidingMoves(startSquare, piece, board.colorToMove)
                 } else if (piece.IsType(piece, piece.Knight)) {
                     GenerateKnightMoves(startSquare, piece, board.colorToMove)
+                } else if (piece.IsType(piece, piece.King)) {
+                    GenerateKingMoves(startSquare, piece, board.colorToMove)
                 }
             }
             for (var i = 0; i < piece.moves.length; i++) {
