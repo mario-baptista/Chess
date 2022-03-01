@@ -14,8 +14,25 @@ function allowDrop(ev) {
 function showMoves(ev) {
     var id = this.id
     var piece = board.Square[id]
-    piece.moves = []
-    piece.getValidMoves(piece)
+    if (document.getElementById(id).style.backgroundColor != white && document.getElementById(id).style.backgroundColor != dark) {
+        console.log(board.selectedPiece)
+        MovePiece(board.selectedPiece, board.selectedPiece.position + "a", id)
+    } else {
+        for (var i = 0; i < 64; i++) {
+            var piece = board.Square[i]
+            if (piece == null) continue
+            for (var j = 0; j < piece.moves.length; j++) {
+                document.getElementById(piece.moves[j].TargetSquare).style.backgroundColor = board.defaultColors[piece.moves[j].TargetSquare]
+            }
+            piece.moves = []
+        }
+        id = this.id
+        piece = board.Square[id]
+        if (piece == null) return
+        piece.moves = []
+        piece.getValidMoves(piece)
+        board.selectedPiece = piece
+    }
 }
 
 function rightClick(ev) {
@@ -44,42 +61,48 @@ async function drop(ev) {
     // ev.target.id = id do quadrado onde quero mover a peça
     var data = ev.dataTransfer.getData("text");
     var piece = board.Square[data.slice(0, -1)]
+    MovePiece(piece, data, ev.target.id)
+}
+
+function MovePiece(piece, startSquare, targetSquare) {
+    // Remover a cor dos moves possiveis
     for (var i = 0; i < piece.moves.length; i++) {
         document.getElementById(piece.moves[i].TargetSquare).style.backgroundColor = board.defaultColors[piece.moves[i].TargetSquare]
     }
+    // Verificar se o move é possível
     for (var i = 0; i < piece.moves.length; i++) {
-        if ((piece.moves[i].TargetSquare + "a") == ev.target.id) var greenlight = true
-        else if ((piece.moves[i].TargetSquare) == ev.target.id) var greenlight = true
+        if ((piece.moves[i].TargetSquare + "a") == targetSquare) var greenlight = true
+        else if ((piece.moves[i].TargetSquare) == targetSquare) var greenlight = true
     }
+    // Se n for baza
     if (!greenlight) return
     piece.moves = []
-    if (ev.target.id == data) return
-    if (ev.target.nodeName !== "IMG") {
+    if (targetSquare == startSquare) return
+    if (document.getElementById(targetSquare).tagName !== "IMG") {
         // move piece
-        var img = document.getElementById(ev.target.id + "a")
+        var img = document.getElementById(targetSquare + "a")
         img.src = ""
-        var aux = data.slice(0, -1)
-        var aux1 = ev.target.id
+        var aux = startSquare.slice(0, -1)
+        var aux1 = targetSquare
         board.Square[aux1] = new Piece(null, null, aux1)
         board.Square[aux1].color = board.Square[aux].color
         board.Square[aux1].type = board.Square[aux].type
         board.Square[aux].color = ""
         board.Square[aux].type = ""
         board.Square[aux].moves = []
-        img.src = document.getElementById(data).src
-        document.getElementById(data).src = ""
+        img.src = document.getElementById(startSquare).src
+        document.getElementById(startSquare).src = ""
     } else {
-        // eat piece
-        ev.target.src = ""
-        var aux = data.slice(0, -1)
-        var aux1 = ev.target.id.slice(0, -1)
+        // eat piece        
+        var aux = startSquare.slice(0, -1)
+        var aux1 = targetSquare.slice(0, -1)
         board.Square[aux1].color = board.Square[aux].color
         board.Square[aux1].type = board.Square[aux].type
         board.Square[aux].color = ""
         board.Square[aux].type = ""
         board.Square[aux].moves = []
-        ev.target.src = document.getElementById(data).src
-        document.getElementById(data).src = ""
+        document.getElementById(targetSquare).src = document.getElementById(startSquare).src
+        document.getElementById(startSquare).src = ""
     }
 }
 
@@ -87,6 +110,31 @@ class Move {
     constructor(StartSquare, TargetSquare) {
         this.StartSquare = StartSquare;
         this.TargetSquare = TargetSquare;
+    }
+}
+
+var numSquaresToEdge = [
+    []
+]
+for (var file = 0; file < 8; file++) {
+    for (var rank = 0; rank < 8; rank++) {
+
+        var numEast = 7 - rank
+        var numWest = rank
+        var numNorth = file
+        var numSouth = 7 - file
+
+        var squareIndex = file * 8 + rank
+        numSquaresToEdge[squareIndex] = [
+            numSouth,
+            numEast,
+            numWest,
+            numNorth,
+            numWest < numSouth ? numWest : numSouth,
+            numEast < numNorth ? numEast : numNorth,
+            numEast < numSouth ? numEast : numSouth,
+            numWest < numNorth ? numWest : numNorth
+        ]
     }
 }
 
@@ -138,6 +186,10 @@ class Piece {
         return piece.type == "b" || piece.type == "r" || piece.type == "q"
     }
 
+    IsKnightPiece(piece) {
+        return piece.type == "n"
+    }
+
     IsType(piece, pieceToCompareTo) {
         return piece.type == pieceToCompareTo
     }
@@ -145,61 +197,48 @@ class Piece {
     getValidMoves(piece) {
 
         function GenerateKnightMoves(startSquare, piece, friendlyColor) {
-            var DirectionOffsets = [-17, -15, -6, 10, 17, 15, 6, -10]
-            for (var i = 1; i < 8; i++) {
-                if (i * 8 > startSquare) {
-                    var file = i - 1
-                    var rank = startSquare - file * 8
-                    break
+            var DirectionOffsets = [
+                [-2, 1],
+                [-1, 2],
+                [1, 2],
+                [2, 1],
+                [2, -1],
+                [1, -2],
+                [-1, -2],
+                [-2, -1]
+            ]
+
+            for (var index = 0; index < DirectionOffsets.length; index++) {
+                var coordsStartSquare = board.PositionToCoords(startSquare)
+                if (coordsStartSquare[0] + DirectionOffsets[index][0] >= 0 && coordsStartSquare[0] + DirectionOffsets[index][0] < 8 && coordsStartSquare[1] + DirectionOffsets[index][1] >= 0 && coordsStartSquare[1] + DirectionOffsets[index][1] < 8) {
+
+                    var targetSquare = board.CoordsToPosition([coordsStartSquare[0] + DirectionOffsets[index][0], coordsStartSquare[1] + DirectionOffsets[index][1]])
+                    var pieceOnTargetSquare = board.Square[targetSquare]
+
+                    // Blocked by friendly piece
+                    if (piece.IsColor(pieceOnTargetSquare, friendlyColor)) {
+                        continue
+                    }
+
+                    piece.moves.push(new Move(startSquare, targetSquare))
                 }
             }
-            if (file < 2) DirectionOffsets = [-6, 10, 17, 15, 6, -10]
-            else if (file < 1) DirectionOffsets = [10, 17, 15, 6]
-            else if (file > 5) DirectionOffsets = [-17, -15, -6, 10, 6, -10]
-            else if (file > 6) DirectionOffsets = [-17, -15, -6, -10]
-            if (rank < 2) DirectionOffsets = [-17, -15, -6, 10, 17, 15]
-            else if (rank < 1) DirectionOffsets = [-6, 10, 17, 15]
-            else if (rank > 5) DirectionOffsets = [-17, -15, 17, 15, 6, -10]
-            else if (rank > 6) DirectionOffsets = [-17, -15, 6, -10]
         }
 
 
         function GenerateSlidingMoves(startSquare, piece, friendlyColor) {
 
             var DirectionOffsets = [8, 1, -1, -8, 7, -7, 9, -9]
-            var numSquaresToEdge = [
-                []
-            ]
-            for (var file = 0; file < 8; file++) {
-                for (var rank = 0; rank < 8; rank++) {
 
-                    var numEast = 7 - rank
-                    var numWest = rank
-                    var numNorth = file
-                    var numSouth = 7 - file
-
-                    var squareIndex = file * 8 + rank
-                    numSquaresToEdge[squareIndex] = [
-                        numSouth,
-                        numEast,
-                        numWest,
-                        numNorth,
-                        numWest < numSouth ? numWest : numSouth,
-                        numEast < numNorth ? numEast : numNorth,
-                        numEast < numSouth ? numEast : numSouth,
-                        numWest < numNorth ? numWest : numNorth
-                    ]
-                }
-            }
             var startDirIndex = (piece.IsType(piece, piece.Bishop)) ? 4 : 0
             var endDirIndex = (piece.IsType(piece, piece.Rook)) ? 4 : 8
+
+            var opponentColor = friendlyColor == "w" ? "b" : "w"
 
             for (var directionIndex = startDirIndex; directionIndex < endDirIndex; directionIndex++) {
                 for (var n = 0; n < numSquaresToEdge[startSquare][directionIndex]; n++) {
                     var targetSquare = startSquare + DirectionOffsets[directionIndex] * (n + 1)
                     var pieceOnTargetSquare = board.Square[targetSquare]
-
-                    var opponentColor = friendlyColor == "w" ? "b" : "w"
 
                     // Blocked by friendly piece (cant move further in this direction)
                     if (piece === null) continue
@@ -224,6 +263,8 @@ class Piece {
                 if (piece.IsColor(piece, colorToMove)) {
                     if (piece.IsSlidingPiece(piece)) {
                         GenerateSlidingMoves(startSquare, piece, colorToMove)
+                    } else if (piece.IsKnightPiece(piece)) {
+                        GenerateKnightMoves(startSquare, piece, colorToMove)
                     }
                 }
             }
@@ -260,6 +301,10 @@ class Board {
         this.castleString = "";
         this.enPassant = "";
         this.defaultColors = []
+        this.selectedPiece
+        this.coords = [
+                []
+            ]
             //Cria o Tabuleiro
         for (var file = 0; file < 8; file++) {
             for (var rank = 0; rank < 8; rank++) {
@@ -287,6 +332,25 @@ class Board {
                 newSquare.appendChild(pieceAsset)
             }
         }
+    }
+
+    getCoordsArray() {
+        var count = 0
+        for (var i = 0; i < 8; i++) {
+            for (var j = 0; j < 8; j++) {
+                this.coords[count] = [i, j]
+                count++
+            }
+        }
+    }
+
+    PositionToCoords(position) {
+        if (this.coords.length == 1) board.getCoordsArray()
+        return this.coords[position]
+    }
+
+    CoordsToPosition(coords) {
+        return coords[0] * 8 + coords[1]
     }
 
     async LoadPosition(FEN) {
