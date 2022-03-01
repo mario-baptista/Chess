@@ -15,7 +15,6 @@ function showMoves(ev) {
     var id = this.id
     var piece = board.Square[id]
     if (document.getElementById(id).style.backgroundColor != white && document.getElementById(id).style.backgroundColor != dark) {
-        console.log(board.selectedPiece)
         MovePiece(board.selectedPiece, board.selectedPiece.position + "a", id)
     } else {
         for (var i = 0; i < 64; i++) {
@@ -64,10 +63,24 @@ async function drop(ev) {
     MovePiece(piece, data, ev.target.id)
 }
 
-function MovePiece(piece, startSquare, targetSquare) {
+async function Promote(piece, targetSquare) {
+    piece.type = "q"
+    if (await confirm("Queen?")) {
+        document.getElementById(targetSquare).src = "img/" + piece.color + piece.type + ".png"
+    } else {
+        let promotion = await prompt("q - Queen | r - Rook | b - Bishop | n - knight:", "q");
+        if (promotion == null || promotion == "" || (promotion != "q" && promotion != "r" && promotion != "b" && promotion != "n")) {
+            document.getElementById(targetSquare).src = "img/" + piece.color + piece.type + ".png"
+        } else {
+            piece.type = promotion
+            document.getElementById(targetSquare).src = "img/" + piece.color + promotion + ".png"
+        }
+    }
+}
+
+async function MovePiece(piece, startSquare, targetSquare) {
     // Remover a cor dos moves possiveis
     for (var i = 0; i < piece.moves.length; i++) {
-        console.log(piece, i)
         document.getElementById(piece.moves[i].TargetSquare).style.backgroundColor = board.defaultColors[piece.moves[i].TargetSquare]
     }
     // Verificar se o move é possível
@@ -85,26 +98,56 @@ function MovePiece(piece, startSquare, targetSquare) {
         img.src = ""
         var aux = startSquare.slice(0, -1)
         var aux1 = targetSquare
-        board.Square[aux1] = new Piece(null, null, aux1)
-        board.Square[aux1].color = board.Square[aux].color
-        board.Square[aux1].type = board.Square[aux].type
-        board.Square[aux].color = ""
-        board.Square[aux].type = ""
-        board.Square[aux].moves = []
+        var color = board.Square[aux].color
+        var type = board.Square[aux].type
+        board.Square[aux1] = new Piece(color, type, aux1)
+        board.Square[aux] = null
         img.src = document.getElementById(startSquare).src
         document.getElementById(startSquare).src = ""
+        if (targetSquare == board.enPassant) {
+            var aux2 = board.colorToMove == "w" ? parseInt(targetSquare) + 8 : parseInt(targetSquare) - 8
+            board.Square[aux2] = null
+            document.getElementById(aux2 + "a").src = ""
+        }
+        // Promover peao
+        if ((aux1 <= 7 || aux1 >= 56) && board.Square[aux1].IsType(board.Square[aux1], board.Square[aux1].Pawn)) {
+            Promote(board.Square[aux1], targetSquare)
+        }
+
+        // EnPassant
+        board.enPassant = ""
+        if (board.Square[aux1].IsType(board.Square[aux1], piece.Pawn)) {
+
+            if (Math.abs(parseInt(aux) - parseInt(aux1)) == 16) {
+                board.enPassant = board.colorToMove == "w" ? targetSquare + 8 : targetSquare - 8
+            }
+        }
+
     } else {
         // eat piece        
         var aux = startSquare.slice(0, -1)
         var aux1 = targetSquare.slice(0, -1)
         board.Square[aux1].color = board.Square[aux].color
         board.Square[aux1].type = board.Square[aux].type
-        board.Square[aux].color = ""
-        board.Square[aux].type = ""
-        board.Square[aux].moves = []
+        board.Square[aux] = null
         document.getElementById(targetSquare).src = document.getElementById(startSquare).src
         document.getElementById(startSquare).src = ""
+
+        // Promover peao
+        if ((aux1 <= 7 || aux1 >= 56) && board.Square[aux1].IsType(board.Square[aux1], board.Square[aux1].Pawn)) {
+            Promote(board.Square[aux1], targetSquare)
+        }
+
+        // EnPassant
+        board.enPassant = ""
+        if (board.Square[aux1].IsType(board.Square[aux1], piece.Pawn)) {
+
+            if (Math.abs(parseInt(aux) - parseInt(aux1)) == 16) {
+                board.enPassant = board.colorToMove == "w" ? targetSquare + 8 : targetSquare - 8
+            }
+        }
     }
+    board.colorToMove = board.colorToMove == "w" ? "b" : "w"
 }
 
 class Move {
@@ -187,14 +230,6 @@ class Piece {
         return piece.type == "b" || piece.type == "r" || piece.type == "q"
     }
 
-    IsKnightPiece(piece) {
-        return piece.type == "n"
-    }
-
-    IsKingPiece(piece) {
-        return piece.type == "k"
-    }
-
     IsType(piece, pieceToCompareTo) {
         return piece.type == pieceToCompareTo
     }
@@ -239,7 +274,8 @@ class Piece {
             for (var directionIndex = 0; directionIndex < 8; directionIndex++) {
 
                 var targetSquare = startSquare + DirectionOffsets[directionIndex]
-                if (targetSquare > 63 || targetSquare < 0) continue
+                if (targetSquare < 0 || targetSquare > 63) continue
+
                 var pieceOnTargetSquare = board.Square[targetSquare]
 
                 // Blocked by friendly piece (cant move further in this direction)
@@ -250,6 +286,31 @@ class Piece {
                 piece.moves.push(new Move(startSquare, targetSquare))
 
             }
+        }
+
+        function GeneratePawnMoves(startSquare, piece, friendlyColor) {
+            var DirectionOffsets = friendlyColor == "b" ? [8, 7, 9] : [-8, -7, -9]
+
+            var firstMove = false
+
+            if (startSquare <= 15 && friendlyColor == "b" || startSquare >= 48 && friendlyColor == "w") firstMove = true
+
+            if (firstMove) {
+                targetSquare = startSquare + 2 * DirectionOffsets[0]
+                pieceOnTargetSquare = board.Square[targetSquare]
+
+                if (pieceOnTargetSquare == null) piece.moves.push(new Move(startSquare, targetSquare))
+            }
+
+            for (var i = 0; i < DirectionOffsets.length; i++) {
+                var targetSquare = startSquare + DirectionOffsets[i]
+                var pieceOnTargetSquare = board.Square[targetSquare]
+
+                if (pieceOnTargetSquare == null && i == 0) piece.moves.push(new Move(startSquare, targetSquare))
+                if (pieceOnTargetSquare != null && i != 0 && pieceOnTargetSquare.color != friendlyColor) piece.moves.push(new Move(startSquare, targetSquare))
+                if (i != 0 && targetSquare.toString() == board.enPassant) piece.moves.push(new Move(startSquare, targetSquare))
+            }
+
         }
 
 
@@ -288,11 +349,14 @@ class Piece {
                 var piece = parseInt(board.Square[startSquare])
                 if (piece == null) continue
                 if (piece.IsColor(piece, colorToMove)) {
-                    console.log(piece)
                     if (piece.IsSlidingPiece(piece)) {
                         GenerateSlidingMoves(startSquare, piece, colorToMove)
-                    } else if (piece.IsKnightPiece(piece)) {
-                        GenerateKnightMoves(startSquare, piece, colorToMove)
+                    } else if (piece.IsType(piece, piece.Knight)) {
+                        GenerateKnightMoves(startSquare, piece, board.colorToMove)
+                    } else if (piece.IsType(piece, piece.King)) {
+                        GenerateKingMoves(startSquare, piece, board.colorToMove)
+                    } else if (piece.IsType(piece, piece.Pawn)) {
+                        GeneratePawnMoves(startSquare, piece, board.colorToMove)
                     }
                 }
             }
@@ -308,6 +372,8 @@ class Piece {
                     GenerateKnightMoves(startSquare, piece, board.colorToMove)
                 } else if (piece.IsType(piece, piece.King)) {
                     GenerateKingMoves(startSquare, piece, board.colorToMove)
+                } else if (piece.IsType(piece, piece.Pawn)) {
+                    GeneratePawnMoves(startSquare, piece, board.colorToMove)
                 }
             }
             for (var i = 0; i < piece.moves.length; i++) {
