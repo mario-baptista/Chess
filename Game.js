@@ -47,7 +47,7 @@ function rightClick(ev) {
         for (var j = 0; j < piece.moves.length; j++) {
             document.getElementById(piece.moves[j].TargetSquare).style.backgroundColor = board.defaultColors[piece.moves[j].TargetSquare]
         }
-        piece.moves = []
+        // piece.moves = []
     }
 }
 
@@ -55,13 +55,13 @@ function drag(ev) {
     ev.dataTransfer.setData("text", ev.target.id);
     var pos = ev.target.id.slice(0, -1)
     var piece = board.Square[pos]
-
+    if (!piece.IsColor(piece, board.colorToMove)) return
 
     for (var i = 0; i < piece.moves.length; i++) {
         if (piece.moves[i].TargetSquare > 63) continue
         document.getElementById(piece.moves[i].TargetSquare).style.backgroundColor = "#de3d4c"
     }
-    piece.getValidMoves(piece)
+    //piece.getValidMoves(piece)
 }
 
 async function drop(ev) {
@@ -70,9 +70,14 @@ async function drop(ev) {
     // ev.target.id = id do quadrado onde quero mover a peça
     var data = ev.dataTransfer.getData("text");
     var piece = board.Square[data.slice(0, -1)]
-    MovePiece(piece, data, ev.target.id)
-    piece.moves = []
-    piece.getValidMoves(piece)
+    for (var i = 0; i < 64; i++) {
+        document.getElementById(i).style.backgroundColor = board.defaultColors[i]
+    }
+    var boo = MovePiece(piece, data, ev.target.id)
+    if (!boo) {
+        piece.moves = []
+        piece.getValidMoves(piece)
+    }
 }
 
 async function askPromote(piece, targetSquare) {
@@ -94,7 +99,7 @@ function Promote(piece, pieceToPromoteTo) {
 }
 
 async function MovePiece(piece, startSquare, targetSquare, force = false) {
-    if (piece.color != board.colorToMove) return
+    if (piece.color != board.colorToMove) return false
         // Remover a cor dos moves possiveis
     for (var i = 0; i < piece.moves.length; i++) {
         document.getElementById(piece.moves[i].TargetSquare).style.backgroundColor = board.defaultColors[piece.moves[i].TargetSquare]
@@ -105,9 +110,9 @@ async function MovePiece(piece, startSquare, targetSquare, force = false) {
         else if ((piece.moves[i].TargetSquare) == targetSquare) var greenlight = true
     }
     // Se n for baza
-    if (!greenlight && !force) return
+    if (!greenlight && !force) return false
     piece.moves = []
-    if (targetSquare == startSquare) return
+    if (targetSquare == startSquare) return false
     if (document.getElementById(targetSquare).tagName !== "IMG") {
         // Mover peça
         var img = document.getElementById(targetSquare + "a")
@@ -164,7 +169,7 @@ async function MovePiece(piece, startSquare, targetSquare, force = false) {
                 board.castleString = board.castleString.replace('k', '');
                 MovePiece(board.Square[7], 7 + "a", 5 + "", true)
             }
-            board.colorToMove = board.colorToMove == "w" ? "b" : "w"
+            board.colorToMove = InvertColor(board.colorToMove)
         }
 
     } else {
@@ -184,11 +189,18 @@ async function MovePiece(piece, startSquare, targetSquare, force = false) {
         }
         board.enPassant = null
     }
-    board.colorToMove = board.colorToMove == "w" ? "b" : "w"
+    var auxPiece = new Piece(board.colorToMove, null, null)
     board.blockCheck = []
     board.isInCheck = false
+    board.resetMoves()
+    auxPiece.getValidMoves(piece)
+    board.colorToMove = InvertColor(board.colorToMove)
     piece.moves = []
     piece.getValidMoves(piece)
+}
+
+function InvertColor(color) {
+    return color == "w" ? "b" : "w"
 }
 
 var numSquaresToEdge = [

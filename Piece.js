@@ -55,6 +55,7 @@ class Piece {
 
 
         function GenerateKnightMoves(startSquare, piece, friendlyColor) {
+
             var DirectionOffsets = [
                 [-2, 1],
                 [-1, 2],
@@ -88,6 +89,18 @@ class Piece {
                     }
 
                     piece.moves.push(new Move(startSquare, targetSquare))
+
+                    var opponentColor = InvertColor(friendlyColor)
+
+                    if (piece.IsColor(pieceOnTargetSquare, opponentColor)) {
+                        var kingSquare = targetSquare
+                        var blockCheckSquare = startSquare
+                        if (pieceOnTargetSquare.IsType(pieceOnTargetSquare, piece.King)) {
+                            board.blockCheck.push(startSquare)
+                            board.isInCheck = true
+                            document.getElementById(blockCheckSquare).style.backgroundColor = blockCheckColor
+                        }
+                    }
                 }
             }
         }
@@ -95,8 +108,6 @@ class Piece {
         function GenerateKingMoves(startSquare, piece, friendlyColor) {
 
             var DirectionOffsets = [8, 1, -1, -8, 7, -7, 9, -9]
-
-            var opponentColor = friendlyColor == "w" ? "b" : "w"
 
             // Castle
 
@@ -129,7 +140,7 @@ class Piece {
                     continue
                 }
 
-                if (board.blockCheck.includes(targetSquare)) continue
+                if (board.blockCheck.includes(targetSquare) && board.Square[targetSquare] == null) continue
                 if (DirectionOffsets[directionIndex] == -2 && !canQueenSideCastle) continue
                 if (DirectionOffsets[directionIndex] == 2 && !canKingSideCastle) continue
 
@@ -167,7 +178,14 @@ class Piece {
                 var pieceOnTargetSquare = board.Square[targetSquare]
 
                 if (pieceOnTargetSquare == null && i == 0) piece.moves.push(new Move(startSquare, targetSquare))
-                if (pieceOnTargetSquare != null && i != 0 && pieceOnTargetSquare.color != friendlyColor) piece.moves.push(new Move(startSquare, targetSquare))
+                if (pieceOnTargetSquare != null && i != 0 && pieceOnTargetSquare.color != friendlyColor) {
+                    piece.moves.push(new Move(startSquare, targetSquare))
+                    if (pieceOnTargetSquare.IsType(pieceOnTargetSquare, piece.King)) {
+                        board.blockCheck.push(startSquare)
+                        board.isInCheck = true
+                        document.getElementById(startSquare).style.backgroundColor = blockCheckColor
+                    }
+                }
                 if (i != 0 && targetSquare.toString() == board.enPassant) piece.moves.push(new Move(startSquare, targetSquare))
             }
 
@@ -176,14 +194,12 @@ class Piece {
 
         function GenerateSlidingMoves(startSquare, piece, friendlyColor) {
 
-            console.log("GenerateSlidingMoves " + friendlyColor)
-
             var DirectionOffsets = [8, 1, -1, -8, 7, -7, 9, -9]
 
             var startDirIndex = (piece.IsType(piece, piece.Bishop)) ? 4 : 0
             var endDirIndex = (piece.IsType(piece, piece.Rook)) ? 4 : 8
 
-            var opponentColor = friendlyColor == "w" ? "b" : "w"
+            var opponentColor = InvertColor(friendlyColor)
 
             for (var directionIndex = startDirIndex; directionIndex < endDirIndex; directionIndex++) {
                 for (var n = 0; n < numSquaresToEdge[startSquare][directionIndex]; n++) {
@@ -204,22 +220,21 @@ class Piece {
                             continue
                         }
                     }
-
                     piece.moves.push(new Move(startSquare, targetSquare))
 
                     // Can´t move any further in this direction after capturing opponent's piece
                     if (piece.IsColor(pieceOnTargetSquare, opponentColor)) {
                         var kingSquare = targetSquare
                         var blockCheckSquare
-                            // if (pieceOnTargetSquare.IsType(pieceOnTargetSquare, piece.King)) {
-                            //     for (var i = 0; i < numSquaresToEdge[startSquare][directionIndex] - 1; i++) {
-                            //         blockCheckSquare = kingSquare - DirectionOffsets[directionIndex] * (i + 1)
-                            //         board.blockCheck.push(blockCheckSquare)
-                            //         document.getElementById(blockCheckSquare).style.backgroundColor = blockCheckColor
-                            //         board.isInCheck = true
-                            //     }
-                            //     console.log("check")
-                            // }
+                        if (pieceOnTargetSquare.IsType(pieceOnTargetSquare, piece.King)) {
+                            for (var i = 0; i < numSquaresToEdge[startSquare][directionIndex] - 1; i++) {
+                                blockCheckSquare = kingSquare - DirectionOffsets[directionIndex] * (i + 1)
+                                board.blockCheck.push(blockCheckSquare)
+                                document.getElementById(blockCheckSquare).style.backgroundColor = blockCheckColor
+                                if (blockCheckSquare == startSquare) break
+                            }
+                            board.isInCheck = true
+                        }
                         break
                     }
                 }
@@ -266,7 +281,7 @@ class Piece {
 
 
 
-        //generateAllMoves(board.colorToMove)
-        GenerateMovesForPiece(piece)
+        generateAllMoves(board.colorToMove)
+            // GenerateMovesForPiece(piece)
     }
 }

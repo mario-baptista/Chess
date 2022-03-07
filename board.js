@@ -47,6 +47,15 @@ class Board {
         }
     }
 
+    resetMoves() {
+
+        // ter array so com as peças sff
+
+        for (var i = 0; i < 64; i++) {
+            if (board.Square[i] != null) board.Square[i].moves = []
+        }
+    }
+
     getCoordsArray() {
         var count = 0
         for (var i = 0; i < 8; i++) {
@@ -74,7 +83,7 @@ class Board {
         var position = 0;
         var type = "",
             color = ""
-        var piece = new Piece(board.colorToMove == "w" ? "b" : "w", null, null)
+        var piece = new Piece(InvertColor(board.colorToMove), null, null)
         for (var i = 0; i < FEN.length; i++) {
             //await sleep(50);
             var char = FEN.charAt(i)
@@ -124,9 +133,9 @@ class Board {
                 }
             }
         }
-        board.colorToMove = board.colorToMove == "w" ? "b" : "w"
+        board.colorToMove = InvertColor(board.colorToMove)
         piece.getValidMoves(piece)
-        board.colorToMove = board.colorToMove == "w" ? "b" : "w"
+        board.colorToMove = InvertColor(board.colorToMove)
         piece = new Piece(board.colorToMove, null, null)
         piece.getValidMoves(piece)
     }
@@ -138,5 +147,11 @@ class Board {
                 document.getElementsByTagName("img")[i].src = ""
             } catch {}
         }
+    }
+
+    GenerateAllMovesTest() {
+        var piece = new Piece(board.colorToMove, null, null)
+        piece.getValidMoves(piece)
+        piece.color == InvertColor(piece.color)
     }
 }
