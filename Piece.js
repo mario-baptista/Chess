@@ -140,6 +140,12 @@ class Piece {
                     continue
                 }
 
+                var Kingcoords = board.PositionToCoords(targetSquare)
+
+                if (board.isInCheck) {
+                    if (Kingcoords[0] == board.checkRank || Kingcoords[1] == board.checkFile) continue
+                }
+
                 if (board.blockCheck.includes(targetSquare) && board.Square[targetSquare] == null) continue
                 if (DirectionOffsets[directionIndex] == -2 && !canQueenSideCastle) continue
                 if (DirectionOffsets[directionIndex] == 2 && !canKingSideCastle) continue
@@ -234,6 +240,9 @@ class Piece {
                                 if (blockCheckSquare == startSquare) break
                             }
                             board.isInCheck = true
+                            var aux = board.PositionToCoords(startSquare)
+                            board.checkRank = aux[0]
+                            board.checkFile = aux[1]
                         }
                         break
                     }

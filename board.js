@@ -15,6 +15,8 @@ class Board {
         this.blackKing = 4
         this.blockCheck = []
         this.isInCheck = false
+        this.checkFile = -1
+        this.checkRank = -1
         this.coords = [
                 []
             ]
