@@ -1,1 +1,2 @@
-checks
+pins
+array com as peças todas para n dar loop ao board todo

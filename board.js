@@ -17,6 +17,9 @@ class Board {
         this.isInCheck = false
         this.checkFile = -1
         this.checkRank = -1
+        this.kingCantMoveHere = []
+        this.isBeingAttacked = []
+        this.pinnedPieces = []
         this.coords = [
                 []
             ]

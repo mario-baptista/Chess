@@ -191,6 +191,10 @@ async function MovePiece(piece, startSquare, targetSquare, force = false) {
     }
     var auxPiece = new Piece(board.colorToMove, null, null)
     board.blockCheck = []
+    board.checkFile = []
+    board.checkRank = []
+    board.kingCantMoveHere = []
+    board.isBeingAttacked = []
     board.isInCheck = false
     board.resetMoves()
     auxPiece.getValidMoves(piece)

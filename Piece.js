@@ -1,4 +1,5 @@
 var blockCheckColor = "#f66f2e"
+var pinnedPieceColor = "#d4b000"
 
 class Piece {
     constructor(color, type, position) {
@@ -83,12 +84,14 @@ class Piece {
                     if (board.isInCheck) {
                         if (board.blockCheck.includes(targetSquare)) {
                             piece.moves.push(new Move(startSquare, targetSquare))
+                            board.isBeingAttacked[targetSquare] = true
                         } else {
                             continue
                         }
                     }
 
                     piece.moves.push(new Move(startSquare, targetSquare))
+                    board.isBeingAttacked[targetSquare] = true
 
                     var opponentColor = InvertColor(friendlyColor)
 
@@ -131,6 +134,8 @@ class Piece {
             for (var directionIndex = 0; directionIndex < DirectionOffsets.length; directionIndex++) {
 
                 var targetSquare = startSquare + DirectionOffsets[directionIndex]
+                if (board.isBeingAttacked[targetSquare]) continue
+                if (board.kingCantMoveHere.includes(targetSquare)) continue
                 if (targetSquare < 0 || targetSquare > 63) continue
 
                 var pieceOnTargetSquare = board.Square[targetSquare]
@@ -144,6 +149,7 @@ class Piece {
 
                 if (board.isInCheck) {
                     if (Kingcoords[0] == board.checkRank || Kingcoords[1] == board.checkFile) continue
+                    if (board.blockCheck.includes(targetSquare)) continue
                 }
 
                 if (board.blockCheck.includes(targetSquare) && board.Square[targetSquare] == null) continue
@@ -151,6 +157,7 @@ class Piece {
                 if (DirectionOffsets[directionIndex] == 2 && !canKingSideCastle) continue
 
                 piece.moves.push(new Move(startSquare, targetSquare))
+                board.isBeingAttacked[targetSquare] = true
 
             }
         }
@@ -166,6 +173,7 @@ class Piece {
             if (board.isInCheck) {
                 if (board.blockCheck.includes(targetSquare)) {
                     piece.moves.push(new Move(startSquare, targetSquare))
+                    board.isBeingAttacked[targetSquare] = true
                 } else {
                     return
                 }
@@ -176,23 +184,33 @@ class Piece {
                 targetSquare = startSquare + 2 * DirectionOffsets[0]
                 pieceOnTargetSquare = board.Square[targetSquare]
 
-                if (pieceOnTargetSquare == null) piece.moves.push(new Move(startSquare, targetSquare))
+                if (pieceOnTargetSquare == null) {
+                    piece.moves.push(new Move(startSquare, targetSquare));
+                    board.isBeingAttacked[targetSquare] = true
+                }
             }
 
             for (var i = 0; i < DirectionOffsets.length; i++) {
                 var targetSquare = startSquare + DirectionOffsets[i]
                 var pieceOnTargetSquare = board.Square[targetSquare]
 
-                if (pieceOnTargetSquare == null && i == 0) piece.moves.push(new Move(startSquare, targetSquare))
+                if (pieceOnTargetSquare == null && i == 0) {
+                    piece.moves.push(new Move(startSquare, targetSquare))
+                    board.isBeingAttacked[targetSquare] = true
+                }
                 if (pieceOnTargetSquare != null && i != 0 && pieceOnTargetSquare.color != friendlyColor) {
                     piece.moves.push(new Move(startSquare, targetSquare))
+                    board.isBeingAttacked[targetSquare] = true
                     if (pieceOnTargetSquare.IsType(pieceOnTargetSquare, piece.King)) {
                         board.blockCheck.push(startSquare)
                         board.isInCheck = true
                         document.getElementById(startSquare).style.backgroundColor = blockCheckColor
                     }
                 }
-                if (i != 0 && targetSquare.toString() == board.enPassant) piece.moves.push(new Move(startSquare, targetSquare))
+                if (i != 0 && targetSquare.toString() == board.enPassant) {
+                    piece.moves.push(new Move(startSquare, targetSquare))
+                    board.isBeingAttacked[targetSquare] = true
+                }
             }
 
         }
@@ -206,6 +224,10 @@ class Piece {
             var endDirIndex = (piece.IsType(piece, piece.Rook)) ? 4 : 8
 
             var opponentColor = InvertColor(friendlyColor)
+
+            var numEnemyPiecesBlocking = 0
+
+            var maybepinned = -1
 
             for (var directionIndex = startDirIndex; directionIndex < endDirIndex; directionIndex++) {
                 for (var n = 0; n < numSquaresToEdge[startSquare][directionIndex]; n++) {
@@ -222,30 +244,59 @@ class Piece {
                     if (board.isInCheck) {
                         if (board.blockCheck.includes(targetSquare)) {
                             piece.moves.push(new Move(startSquare, targetSquare))
+                            board.isBeingAttacked[targetSquare] = true
                         } else {
                             continue
                         }
                     }
                     piece.moves.push(new Move(startSquare, targetSquare))
+                    board.isBeingAttacked[targetSquare] = true
 
                     // Can´t move any further in this direction after capturing opponent's piece
                     if (piece.IsColor(pieceOnTargetSquare, opponentColor)) {
-                        var kingSquare = targetSquare
+                        var kingSquare = -1
                         var blockCheckSquare
                         if (pieceOnTargetSquare.IsType(pieceOnTargetSquare, piece.King)) {
-                            for (var i = 0; i < numSquaresToEdge[startSquare][directionIndex] - 1; i++) {
+                            if (numEnemyPiecesBlocking == 1) {
+                                board.pinnedPieces.push(maybepinned)
+                                document.getElementById(targetSquare).style.backgroundColor = pinnedPieceColor
+                            }
+                            kingSquare = targetSquare
+                            for (var i = 0; i < numSquaresToEdge[startSquare][directionIndex]; i++) {
                                 blockCheckSquare = kingSquare - DirectionOffsets[directionIndex] * (i + 1)
                                 board.blockCheck.push(blockCheckSquare)
                                 document.getElementById(blockCheckSquare).style.backgroundColor = blockCheckColor
                                 if (blockCheckSquare == startSquare) break
                             }
+
                             board.isInCheck = true
                             var aux = board.PositionToCoords(startSquare)
-                            board.checkRank = aux[0]
-                            board.checkFile = aux[1]
+                            if (piece.IsType(piece, piece.Bishop)) {
+                                for (var directionIndex = 4; directionIndex < 8; directionIndex++) {
+                                    for (var n = 0; n < numSquaresToEdge[startSquare][directionIndex]; n++) {
+                                        board.kingCantMoveHere.push(startSquare + DirectionOffsets[directionIndex] * (n + 1))
+                                    }
+                                }
+                            } else {
+                                board.checkRank = aux[0]
+                                board.checkFile = aux[1]
+                            }
+
+                        } else {
+                            numEnemyPiecesBlocking++
+                            if (targetSquare == 53) console.log(piece)
+                            if (numEnemyPiecesBlocking == 2) break
+                            else {
+                                maybepinned = targetSquare
+                                break
+                            }
                         }
-                        break
+                        // if (numEnemyPiecesBlocking == 2 && kingSquare == targetSquare) {
+                        //     board.pinnedPieces.push(maybepinned)
+                        //     document.getElementById(targetSquare).style.backgroundColor = pinnedPieceColor
+                        // }
                     }
+                    numEnemyPiecesBlocking = 0;
                 }
             }
         }
