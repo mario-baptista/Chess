@@ -12,7 +12,7 @@ function sleep(ms) {
 function allowDrop(ev) {
     ev.preventDefault();
 }
-
+ 
 function showMoves(ev) {
     var id = this.id
     var piece = board.Square[id]
